@@ -8,7 +8,7 @@ import (
 
 var (
 	ip   = "localhost"
-	port = "42040"
+	port = "1234"
 	// # Server IO time limitation.
 	readTimeout  = time.Duration(time.Second * 5)
 	writeTimeout = time.Duration(time.Second * 5)
