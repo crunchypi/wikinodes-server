@@ -74,8 +74,7 @@ func (n *Neo4jManager) unpackWikiDataBrief(
 	if !ok {
 		return &res, ok
 	}
-	res.ID = id
-	res.Title = title
+	res.ID, res.Title = id, title
 
 	return &res, true
 }
@@ -92,14 +91,13 @@ func (n *Neo4jManager) unpackWikiData(
 	if !ok {
 		return &res, ok
 	}
-	res.ID = id
-	res.Title = title
 
 	html, ok := n.unpackString(r, aliasHTML)
 	if !ok {
 		return &res, false
 	}
-	res.HTML = html
+
+	res.ID, res.Title, res.HTML = id, title, html
 
 	return &res, true
 }
