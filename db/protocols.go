@@ -19,14 +19,14 @@ type DBManager interface {
 // WikiData should represent a database obj/entry for a
 // Wikipedia article.
 type WikiData struct {
-	ID    int64
-	Title string
-	HTML  string
+	ID    int64  `json:"id"`
+	Title string `json:"title"`
+	HTML  string `json:"html"`
 }
 
 // WikiDataBrief should represent a database obj/entry for a
 // Wikipedia article, but only the ID and title.
 type WikiDataBrief struct {
-	ID    int64
-	Title string
+	ID    int64  `json:"id"`
+	Title string `json:"title"`
 }
