@@ -86,8 +86,11 @@ func aliasedProps(alias string) (id, title, html, csv string) {
 // # 	let a,b,c = alias, nodeSpec.label, nodeSpec.title
 // # 	(a:b {c:$c})
 // # Note; meant to be used with bindings.
-func cqlNode(alias string) string {
-	props := nodePropBindStr([]string{nodeSpec.title})
+func cqlNode(alias string, addProps bool) string {
+	props := ""
+	if addProps {
+		props = nodePropBindStr([]string{nodeSpec.title})
+	}
 	return fmt.Sprintf("(%s:%s %s)",
 		alias, nodeSpec.label, props)
 }

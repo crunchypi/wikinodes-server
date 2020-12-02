@@ -4,8 +4,16 @@ package db
 // defined by sub-packages (concrete db impl), and used by
 // the server/api to forward data.
 type DBManager interface {
-	NeighboursOfNodeBrief(title string) ([]WikiDataBrief, error)
-	NeighboursOfNode(title string) ([]WikiData, error)
+	SearchNode(title string) ([]*WikiData, error)
+	SearchNodeBrief(title string) ([]*WikiDataBrief, error)
+	// ---
+	// # Only Brief allowed, as 'full' is very lkely to be
+	// # too much for the system to handle at this moment (201202)
+	SearchNodeNeighBrief(title string, exclude []string, limit int) (
+		[]*WikiDataBrief, error)
+	// ---
+	// # Only Brief allowd, pretty much the same reason as above.
+	RandomNodesBrief(amount int) ([]*WikiDataBrief, error)
 }
 
 // WikiData should represent a database obj/entry for a

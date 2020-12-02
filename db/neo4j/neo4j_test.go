@@ -18,7 +18,15 @@ var (
 	// # so it is necessary to specify a
 	// # known title which is attached to
 	// # a db node.
-	knownNodeTitle = ""
+	knownNodeTitle = "Art"
+	// # Known neighbours (titles) of above.
+	knownNodeNeigh = []string{
+		"Abstract animation",
+		"Art history",
+		"Art manifesto",
+		"Art movement",
+		"Avant-garde",
+	}
 )
 
 func init() {
@@ -42,25 +50,60 @@ func init() {
 
 }
 
-func TestNeightboursOfNodeBrief(t *testing.T) {
+func TestSearchNodeBrief(t *testing.T) {
 
-	res, err := manager.NeighboursOfNodeBrief(knownNodeTitle)
+	res, err := manager.SearchNodeBrief(knownNodeTitle)
 	if err != nil {
 		t.Error("Fetch err")
 	}
 
-	if len(res) == 0 || res[0].Title == "" {
-		t.Error("Empty result")
+	if len(res) == 0 || res[0].Title != knownNodeTitle {
+		t.Error("Empty or incorrect result")
 	}
 }
 
-func TestNeightboursOfNode(t *testing.T) {
-	res, err := manager.NeighboursOfNode(knownNodeTitle)
+func TestSearchNode(t *testing.T) {
+	res, err := manager.SearchNode(knownNodeTitle)
 	if err != nil {
 		t.Error("Fetch err")
 	}
 
-	if len(res) == 0 || res[0].Title == "" {
-		t.Error("Empty result")
+	if len(res) == 0 || res[0].Title != knownNodeTitle {
+		t.Error("Empty or incorrect result")
 	}
+}
+
+func TestSearchNodeNeighBrief(t *testing.T) {
+	res, err := manager.SearchNodeNeighBrief(
+		knownNodeTitle,
+		[]string{},
+		len(knownNodeNeigh),
+	)
+	if err != nil {
+		t.Error("Fetch err")
+	}
+	resTitles := make([]string, 0, len(res))
+	for _, w := range res {
+		resTitles = append(resTitles, w.Title)
+	}
+	for _, knownNeigh := range knownNodeNeigh {
+		if !contains(knownNeigh, resTitles) {
+			t.Error(fmt.Sprintf("Did not get %s",
+				knownNeigh))
+		}
+	}
+}
+
+func TestRandomNodesBrief(t *testing.T) {
+	res1, err1 := manager.RandomNodesBrief(1)
+	res2, err2 := manager.RandomNodesBrief(1)
+	if err1 != nil || err2 != nil {
+		s := fmt.Sprintf("node fetch failed: no1: %s, no2: %s",
+			err1, err2)
+		t.Error(s)
+	}
+	if res1[0].Title == res2[0].Title {
+		t.Error("rand test: both titles are equal. Try again?")
+	}
+
 }
