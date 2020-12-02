@@ -10,10 +10,9 @@ import (
 
 // setRoutes sets up routes for this API.
 func (h *handler) setRoutes() {
-	// http.Handle("/stuff", midDOS(http.HandlerFunc(h.stuff)))
-	http.Handle("/data/search/node", http.HandlerFunc(h.searchNode))
-	http.Handle("/data/search/neigh", http.HandlerFunc(h.searchNeigh))
-	http.Handle("/data/search/rand", http.HandlerFunc(h.searchRand))
+	http.Handle("/data/search/node", midDOS(http.HandlerFunc(h.searchNode)))
+	http.Handle("/data/search/neigh", midDOS(http.HandlerFunc(h.searchNeigh)))
+	http.Handle("/data/search/rand", midDOS(http.HandlerFunc(h.searchRand)))
 }
 
 // trySendWikiDataAny takes any <data>, then tries to marshal- and
