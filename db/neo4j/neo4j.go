@@ -1,45 +1,11 @@
 package neo4j
 
 import (
-	"fmt"
 	"sync"
 	"wikinodes-server/db"
 
 	"github.com/neo4j/neo4j-go-driver/neo4j"
 )
-
-// ---------------- helpers -------------------------- //
-
-// # Describes properties of relevant nodes in neo4j.
-var (
-	nodeLabel     = "WikiData"
-	nodePropTitle = "title"
-	nodePropHTML  = "html"
-)
-
-// # Simply constructs a neo4j property bindings string.
-// # Example:
-// # 	let propIDs = []string{"a", "b", "c"}
-// # 	result = "{a:$a, b:$b, c:$c}"
-func nodePropBindStr(propIDs []string) string {
-
-	cql := "{" // Open.
-
-	l := len(propIDs) // Len once.
-	for i := 0; i < l; i++ {
-		cql += fmt.Sprintf("%s:$%s", propIDs[i], propIDs[i])
-
-		// # Add commas after each prop, except for last
-		if i < l-1 {
-			cql += ", "
-		}
-	}
-
-	cql += "}" // Close.
-	return cql
-}
-
-// ---------------- /helpers -------------------------- //
 
 // Exclusively used for Neo4jManager.execute(). Defined
 // as a struct mainly for briefer method signatures.
@@ -110,110 +76,4 @@ func (n *Neo4jManager) execute(x executeParams) error {
 		}
 	}
 	return nil
-}
-
-// ----------------------------------------------------------
-// !!
-// !!	Dear reader: I apologise for the code below -- i was
-// !! 	in a rush and will fix this at a later date, promise!
-// !!
-// !!	In the meantime, rest assured that the methods work.
-// ----------------------------------------------------------
-
-// NeighboursOfNodeBrief accepts a <title> which is expected to be
-// a property of a node 'V' in Neo4j. Label and other relevant props
-// of this 'V' is defined at the top of this file.
-// All neighbours of 'V' will be returned as []db.WikiDataBrief and
-// appropriate props.
-func (n *Neo4jManager) NeighboursOfNodeBrief(title string) ([]db.WikiDataBrief, error) {
-	res := make([]db.WikiDataBrief, 0, 10) // # 10 is arbitrary.
-	// # Node aliasing & property construction.
-	alias := "n"
-	bindStr := nodePropBindStr([]string{nodePropTitle})
-
-	cql := fmt.Sprintf("MATCH (%s:%s %s) RETURN id(%s), %s.%s",
-		alias, nodeLabel, bindStr, alias, alias, nodePropTitle)
-
-	// # Execute cql with bindings, where..
-	err := n.execute(executeParams{
-		cypher:   cql,
-		bindings: map[string]interface{}{nodePropTitle: title},
-		callback: func(r neo4j.Result) {
-
-			// # .. expected return is ...
-			newNode := db.WikiDataBrief{}
-
-			// # .. with property ...
-			search := fmt.Sprintf("%s.%s", alias, nodePropTitle)
-			if v, ok := r.Record().Get(search); ok {
-				// # Because YOLO.
-				newNode.Title = v.(string)
-			}
-			// # .. and ...
-			if v, ok := r.Record().Get("id(n)"); ok {
-				// # Because YOLO -- the return.
-				newNode.ID = v.(int64)
-			}
-
-			// # Only add to result if complete:
-			if newNode.Title != "" && newNode.ID != 0 {
-				res = append(res, newNode)
-			}
-		},
-	})
-
-	return res, err
-}
-
-// NeighboursOfNode accepts a <title> which is expected to be
-// a property of a node 'V' in Neo4j. Label and other relevant props
-// of this 'V' is defined at the top of this file.
-// All neighbours of 'V' will be returned as []db.WikiData and
-// appropriate props.
-func (n *Neo4jManager) NeighboursOfNode(title string) ([]db.WikiData, error) {
-
-	res := make([]db.WikiData, 0, 10) // # 10 is arbitrary.
-	// # Node aliasing & property construction.
-	alias := "n"
-	bindStr := nodePropBindStr([]string{nodePropTitle})
-
-	cql := fmt.Sprintf("MATCH (%s:%s %s) RETURN %s.%s, id(%s), %s.%s",
-		alias, nodeLabel, bindStr, alias,
-		nodePropTitle, alias, alias, nodePropHTML)
-
-	// # Execute cql with bindings, where..
-	err := n.execute(executeParams{
-		cypher:   cql,
-		bindings: map[string]interface{}{nodePropTitle: title},
-		callback: func(r neo4j.Result) {
-
-			// # .. expected return is ...
-			newNode := db.WikiData{}
-
-			// # .. with property ...
-			if v, ok := r.Record().Get("id(n)"); ok {
-				// # Because YOLO -- the return.
-				newNode.ID = v.(int64)
-			}
-			// # .. and ...
-			search := fmt.Sprintf("%s.%s", alias, nodePropTitle)
-			if v, ok := r.Record().Get(search); ok {
-				// # Because YOLO.
-				newNode.Title = v.(string)
-			}
-			// # .. and ..
-			search = fmt.Sprintf("%s.%s", alias, nodePropHTML)
-			if v, ok := r.Record().Get(search); ok {
-				// # Because YOLO.
-				newNode.HTML = v.(string)
-			}
-
-			// # Only add to result if complete:
-			if newNode.Title != "" && newNode.ID != 0 {
-				res = append(res, newNode)
-			}
-		},
-	})
-
-	return res, err
 }
