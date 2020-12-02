@@ -4,32 +4,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
 // setRoutes sets up routes for this API.
 func (h *handler) setRoutes() {
 	// http.Handle("/stuff", midDOS(http.HandlerFunc(h.stuff)))
-	http.Handle("/data/read", http.HandlerFunc(h.readData))
-	http.Handle("/data/read-brief", http.HandlerFunc(h.readDataBrief))
-
+	http.Handle("/data/search/node", http.HandlerFunc(h.searchNode))
+	http.Handle("/data/search/neigh", http.HandlerFunc(h.searchNeigh))
+	http.Handle("/data/search/rand", http.HandlerFunc(h.searchRand))
 }
 
-// readData handles requests of wikipedia data from the db..
-func (h *handler) readData(w http.ResponseWriter, r *http.Request) {
-	body, _ := ioutil.ReadAll(r.Body) // # middleware err handled.
-
-	// # Try db retrieve.
-	res, err := h.db.NeighboursOfNode(string(body))
+// trySendWikiDataAny takes any <data>, then tries to marshal- and
+// send it to a client. Here, this is meant to send any WikiData.
+func trySendWikiDataAny(w http.ResponseWriter, data interface{}) {
+	b, err := json.Marshal(data)
 	if err != nil {
+		msg := fmt.Sprintf("db err on url: %v", err)
+		log.Println(msg) // @ TODO: Logfile.
 		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	// # Struct -> JSON.
-	b, err := json.Marshal(res)
-	if err != nil {
-		msg := fmt.Sprintf("db err on url: %v", r.URL)
-		panic(msg)
 	}
 
 	// # Respond.
@@ -37,24 +31,104 @@ func (h *handler) readData(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
-// readData handles requests of _brief_ wikipedia data from the db.
-func (h *handler) readDataBrief(w http.ResponseWriter, r *http.Request) {
-	body, _ := ioutil.ReadAll(r.Body) // # middleware err handled.
+// searchNode forwards request from client->db to find
+// a node with a certain entry. Uses:
+// 	- db.DBManager.SearchNode(...) ...
+//  - db.DBManager.SearchNodeBrief(...) ...
+//
+// Search options are specified in JSON found at:
+// 	- wapi/json.go (jsonOptSearchNode)
+//
+// testjson/ -d option in curl:
+// 		"{\"title\":\"Art\",\"brief\":true}"
+func (h *handler) searchNode(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body) // @ TODO: err.
 
-	// # Try db retrieve.
-	res, err := h.db.NeighboursOfNodeBrief(string(body))
+	// # Extract options/config.
+	opt := jsonOptSearchNode{}
+	if err := json.Unmarshal(body, &opt); err != nil {
+		w.WriteHeader(http.StatusNotAcceptable)
+		fmt.Println(err) // @ TODO: Logfile.
+		return
+	}
+
+	// # Result & err, independent on options.
+	var resp interface{}
+	var err error
+
+	// # Handle options & get db data.
+	switch opt.Brief {
+	case true:
+		resp, err = h.db.SearchNodeBrief(opt.Title)
+	case false:
+		resp, err = h.db.SearchNode(opt.Title)
+	}
+
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	// # Struct -> JSON.
-	b, err := json.Marshal(res)
-	if err != nil {
-		msg := fmt.Sprintf("db err on url: %v", r.URL)
-		panic(msg)
+	// # Handle err & try respond.
+	trySendWikiDataAny(w, resp)
+}
+
+// searchNeigh forwards request from client->db to find
+// a neighbours of a db node. Uses:
+//  - db.DBManager.SearchNodeNeighBrief(...) ...
+//
+// Search options are specified in JSON found at:
+// 	- wapi/json.go (jsonOptSearchNeigh)
+//
+// testjson/ -d option in curl:
+// 	"{\"title\":\"Art\",\"exclude\":[\"Art history\"], \"limit\":2}"
+func (h *handler) searchNeigh(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body) // @ TODO: err.
+
+	// # Extract options/config.
+	opt := jsonOptSearchNeigh{}
+	if err := json.Unmarshal(body, &opt); err != nil {
+		w.WriteHeader(http.StatusNotAcceptable)
+		fmt.Println(err) // @ TODO: Logfile.
+		return
 	}
 
-	// # Respond.
-	w.WriteHeader(http.StatusOK)
-	w.Write(b)
+	// # Get db data.
+	resp, err := h.db.SearchNodeNeighBrief(
+		opt.Title, opt.Exclude, opt.Limit)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	// # Handle err & try respond.
+	trySendWikiDataAny(w, resp)
+}
+
+// searchRand forwards request from client->db to find
+// random db node(s). Uses:
+//  - db.DBManager.RandomNodesBrief(...) ...
+//
+// Search options are specified in JSON found at:
+// 	- wapi/json.go (jsonOptRandomNode)
+//
+// testjson/ -d option in curl:
+//	"{\"amount\":2}"
+func (h *handler) searchRand(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body) // @ TODO: err.
+
+	// # Extract options/config.
+	opt := jsonOptRandomNode{}
+	if err := json.Unmarshal(body, &opt); err != nil {
+		w.WriteHeader(http.StatusNotAcceptable)
+		fmt.Println(err) // @ TODO: Logfile.
+		return
+	}
+	resp, err := h.db.RandomNodesBrief(opt.Amount)
+
+	// # Handle err & try respond.
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	trySendWikiDataAny(w, resp)
 }
