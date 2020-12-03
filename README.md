@@ -15,7 +15,7 @@ App & Database population repos are found at:
 
 #### NOTE: The current working branch is 'develop'.
 
-To use the server, first start and/or populate a neo4j database with [wikinodes-preprocessing](https://github.com/crunchypi/wikinodes-preprocessing). Population can be done with anything else, of course, but that will likely require some additional work because the names of node labels and fields are hardcoded [here](https://github.com/crunchypi/wikinodes-server/blob/develop/db/neo4j/neo4j.go), as is necessary for this server to do its job.
+To use the server, first start and/or populate a neo4j database with [wikinodes-preprocessing](https://github.com/crunchypi/wikinodes-preprocessing). Population can be done with anything else, of course, but that will likely require some additional work because the names of node labels and fields are hardcoded [here](https://github.com/crunchypi/wikinodes-server/blob/develop/db/neo4j/nodeconstruct.go), as is necessary for this server to do its job.
 
 <br>
 
