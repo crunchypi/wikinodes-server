@@ -21,7 +21,7 @@ To use the server, first start and/or populate a neo4j database with [wikinodes-
 
 When the Neo4j db is up, simply start the server with the line below (uri, usr and pwd is for neo4j). Note, at the moment, the IP & port is static (localhost:1234) and there is no TLS. This will be fixed soon (by 2021).
 ```
-sudo go run main.go <uri> <usr> <pwd>
+sudo go run main.go <uri> <usr> <pwd> # Starts listening at localhost:1234
 ```
 
 <br>
