@@ -10,7 +10,6 @@ App & Database population repos are found at:
   * [wikinodes-preprocessing](https://github.com/crunchypi/wikinodes-preprocessing) (creating/populating db)
 
 <br>
-<br>
 
 ### Usage
 
@@ -18,14 +17,15 @@ App & Database population repos are found at:
 
 To use the server, first start and/or populate a neo4j database with [wikinodes-preprocessing](https://github.com/crunchypi/wikinodes-preprocessing). Population can be done with anything else, of course, but that will likely require some additional work because the names of node labels and fields are hardcoded [here](https://github.com/crunchypi/wikinodes-server/blob/develop/db/neo4j/neo4j.go), as is necessary for this server to do its job.
 
-<br><br>
+<br>
 
 When the Neo4j db is up, simply start the server with the line below (uri, usr and pwd is for neo4j). Note, at the moment, the IP & port is static (localhost:1234) and there is no TLS. This will be fixed soon (by 2021).
 ```
 sudo go run main.go <uri> <usr> <pwd>
 ```
 
-<br> <br>
+<br>
+
 ### API
 
 The API is simple and has three endpoints, each of them listed below (more information further down).
