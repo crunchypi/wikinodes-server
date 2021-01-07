@@ -28,10 +28,11 @@ sudo go run main.go <uri> <usr> <pwd> # Starts listening at localhost:1234
 
 ### API
 
-The API is simple and has three endpoints, each of them listed below (more information further down).
+The API is simple and has a few endpoints, each of them listed below (more information further down).
 * (**1**) ```ip:port/data/search/node ```  (search wiki data)
 * (**2**) ```ip:port/data/search/neigh```  (search neighbours/related articles of a specific article)
 * (**3**) ```ip:port/data/search/rand ```  (search random nodes)
+* (**4**) ```ip:port/data/check/rels  ```  (check node relationships) 
 
 <br>
 
@@ -63,3 +64,14 @@ The API is simple and has three endpoints, each of them listed below (more infor
   * curl: ```ip:port/data/search/rand -d "{\"amount\":3}```
   * resp: ```[{"id":7,"title":"Abstraction"},{...},{...}]```
 
+<br>
+
+(**4**) This endpoint expects a json with format ```{"pairs":list}```, where "pairs" specifies a list of ordered pairs (two-element lists of strings). These ordered pairs are mean for checking if the first element is related to the second in the db (both strings should be titles of wiki articles). Response is expected to be a list of booleans (one bool for each ordered pair).
+* Example 1:
+  * curl: ```ip:port/data/check/rels"{\"pairs\":[[\"Abstract animation\",\"Art\"]]}"```
+  * resp: ```{"resp":[true]}``` or ```{"resp":[false]}```
+* Example 2:
+  * json: ```{"pairs":[["a","b"], ["c", "d"]]}"```
+  * resp: ```{"resp":[true, false]}
+
+<br>
