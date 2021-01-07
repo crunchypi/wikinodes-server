@@ -13,6 +13,8 @@ func (h *handler) setRoutes() {
 	http.Handle("/data/search/node", midDOS(http.HandlerFunc(h.searchNode)))
 	http.Handle("/data/search/neigh", midDOS(http.HandlerFunc(h.searchNeigh)))
 	http.Handle("/data/search/rand", midDOS(http.HandlerFunc(h.searchRand)))
+
+	http.Handle("/data/check/rels", midDOS(http.HandlerFunc(h.checkRels)))
 }
 
 // trySendWikiDataAny takes any <data>, then tries to marshal- and
@@ -130,4 +132,54 @@ func (h *handler) searchRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	trySendWikiDataAny(w, resp)
+}
+
+// checkRels forwards request form client->db to check
+// whether or not tuples of (wiki) article titles have
+// a relationship in the db.
+// Uses:
+// 	- db.DBManager.CheckRel(...) ...
+//
+// Search options are specified in JSON found at:
+// 	- wapi/json.go (jsonOptCheckRels)
+//
+// Example json (curl notation):
+//		"{\"pairs\":[[\"Abstract animation\",\"Art\"]]}"
+// This could either return
+//		"{"resp":[true]}" or {"resp":[false]}
+func (h *handler) checkRels(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body) // @ TODO: err.
+
+	// # Extract options/config.
+	opt := jsonOptCheckRels{}
+	if err := json.Unmarshal(body, &opt); err != nil {
+		w.WriteHeader(http.StatusNotAcceptable)
+		fmt.Println(err) // @ TODO: Logfile.
+		return
+	}
+
+	// # Do task and handle err.
+	resp, err := h.db.CheckRel(opt.Pairs)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// # Try marshal.
+	b, err := json.Marshal(
+		struct {
+			Resp []bool `json:"resp"`
+		}{Resp: resp},
+	)
+	// # Check marshal err.
+	if err != nil {
+		msg := fmt.Sprintf("db err on url: %v", err)
+		log.Println(msg) // @ TODO: Logfile.
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	// # Ok.
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+
 }

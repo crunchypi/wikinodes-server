@@ -157,3 +157,50 @@ func (n *Neo4jManager) RandomNodesBrief(amount int) ([]*db.WikiDataBrief, error)
 
 	return res, err
 }
+
+// CheckRel Checks if relationships exists between tuples
+// of titles. Example: If a relationship exists in the db
+// such that A-[]->B, and 'rels' = [[A, B]], then the
+// return is [true]. Such relationships can be checked
+// in bulk, hence slice of slices. Note; this method isn't
+// optimised, so it'll make a db request for each tuple.
+func (n *Neo4jManager) CheckRel(rels [][2]string) ([]bool, error) {
+	res := make([]bool, len(rels))
+
+	// # Construct node for [0] in tuple.
+	vPropAlias := "vp" // # For binding.
+	v := fmt.Sprintf("(v:%s {%s:$%s})",
+		nodeSpec.label, nodeSpec.title, vPropAlias)
+
+	// # Construct node for [1] in tuple.
+	wPropAlias := "wp" // # For binding.
+	w := fmt.Sprintf("(w:%s {%s:$%s})",
+		nodeSpec.label, nodeSpec.title, wPropAlias)
+
+	// # Only interested if match is successful, so 'RETURN'
+	// # doesn't have to be much more complex than '1'
+	cql := fmt.Sprintf("MATCH %s-[]->%s RETURN 1", v, w)
+
+	// # Check each tuple.
+	for i := 0; i < len(rels); i++ {
+		// # Execute cql with bindings, where..
+		err := n.execute(executeParams{
+			cypher: cql,
+			bindings: map[string]interface{}{
+				vPropAlias: rels[i][0],
+				wPropAlias: rels[i][1],
+			},
+			callback: func(r neo4j.Result) {
+				// # Simply flip 'res' bool at 'i' on success.
+				if len(r.Record().Values()) > 0 {
+					res[i] = true
+				}
+			},
+		})
+		if err != nil {
+			return res, err
+		}
+	}
+
+	return res, nil
+}

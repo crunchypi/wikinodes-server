@@ -14,6 +14,8 @@ type DBManager interface {
 	// ---
 	// # Only Brief allowd, pretty much the same reason as above.
 	RandomNodesBrief(amount int) ([]*WikiDataBrief, error)
+	// # Checks if relationships exists between tuples of titles.
+	CheckRel(rels [][2]string) ([]bool, error)
 }
 
 // WikiData should represent a database obj/entry for a

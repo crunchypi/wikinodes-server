@@ -25,3 +25,7 @@ type jsonOptSearchNeigh struct {
 type jsonOptRandomNode struct {
 	Amount int `json:"amount"`
 }
+
+type jsonOptCheckRels struct {
+	Pairs [][2]string `json:"pairs"`
+}
