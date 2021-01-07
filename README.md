@@ -72,6 +72,6 @@ The API is simple and has a few endpoints, each of them listed below (more infor
   * resp: ```{"resp":[true]}``` or ```{"resp":[false]}```
 * Example 2:
   * json: ```{"pairs":[["a","b"], ["c", "d"]]}"```
-  * resp: ```{"resp":[true, false]}
+  * resp: ```{"resp":[true, false]}```
 
 <br>
