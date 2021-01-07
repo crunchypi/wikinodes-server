@@ -8,7 +8,7 @@ import (
 
 var (
 	// # DB credentials.
-	uri = ""
+	uri = "neo4j://localhost:7687"
 	usr = ""
 	pwd = ""
 	// # Global db manager.
@@ -104,6 +104,31 @@ func TestRandomNodesBrief(t *testing.T) {
 	}
 	if res1[0].Title == res2[0].Title {
 		t.Error("rand test: both titles are equal. Try again?")
+	}
+
+}
+
+func TestCheckRel(t *testing.T) {
+	// # This order should be correct, but naturally depends on
+	// # 'knownNodeNeigh' & 'knownNodeTitle'
+	q := [][2]string{[2]string{knownNodeNeigh[0], knownNodeTitle}}
+	res, err := manager.CheckRel(q)
+	if err != nil {
+		t.Error("unexpected error")
+	}
+	if res[0] != true {
+		t.Errorf("unexpected result: not neighbours. %v", res)
+	}
+
+	// # Test for false positive.
+
+	q = [][2]string{[2]string{"LAHDfL", "DPSBPP"}}
+	res, err = manager.CheckRel(q)
+	if err != nil {
+		t.Error("unexpected error")
+	}
+	if res[0] != false {
+		t.Errorf("unexpected result: not neighbours. %v", res)
 	}
 
 }
