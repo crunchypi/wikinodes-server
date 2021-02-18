@@ -4,31 +4,39 @@ package db
 // defined by sub-packages (concrete db impl), and used by
 // the server/api to forward data.
 type DBManager interface {
-	SearchNode(title string) ([]*WikiData, error)
-	SearchNodeBrief(title string) ([]*WikiDataBrief, error)
-	// ---
-	// # Only Brief allowed, as 'full' is very lkely to be
-	// # too much for the system to handle at this moment (201202)
-	SearchNodeNeighBrief(title string, exclude []string, limit int) (
-		[]*WikiDataBrief, error)
-	// ---
-	// # Only Brief allowd, pretty much the same reason as above.
-	RandomNodesBrief(amount int) ([]*WikiDataBrief, error)
-	// # Checks if relationships exists between tuples of titles.
-	CheckRel(rels [][2]string) ([]bool, error)
-}
+	// SearchArticlesByID will search through articles by
+	// their IDs and return all matches.
+	SearchArticlesByID(id int64) ([]*WikiData, error)
+	// SearchArticlesByTitle will search through articles
+	// by their title and return all matches.
+	SearchArticlesByTitle(title string) ([]*WikiData, error)
 
-// WikiData should represent a database obj/entry for a
-// Wikipedia article.
-type WikiData struct {
-	ID    int64  `json:"id"`
-	Title string `json:"title"`
-	HTML  string `json:"html"`
-}
+	// SearchArticlesByContent will do a full-text search through
+	// the database for content that contains the specified string.
+	// This will be a search on an index named 'ArticleContantIndex'
+	// so thah must be enabled with the following indexing:
+	// 	CALL db.index.fulltext.createNodeIndex(
+	//		"ArticleContentIndex",["WikiNode"],["content"])
+	SearchArticlesByContent(str string, limit int) ([]*WikiData, error)
+	// SearchArticlesNeightsByIDs will search for article 'A'
+	// by its ID and return articles that were linked from 'A'.
+	SearchArticlesNeighsByID(id int64, limit int) ([]*WikiData, error)
+	// SearchArticlesHTMLByID will get the HTML from an article
+	// with the specified ID.
+	SearchArticlesHTMLByID(id int64) (string, error)
 
-// WikiDataBrief should represent a database obj/entry for a
-// Wikipedia article, but only the ID and title.
-type WikiDataBrief struct {
-	ID    int64  `json:"id"`
-	Title string `json:"title"`
+	// CheckRelsExistsByIDs will check if there is a relationship
+	// between articles, i.e if one links another. The Expected
+	// argument should be an slice containing another two-element
+	// array where index 0 should have a 'from' id and index 0
+	// should have a 'to' id. For example if there are two
+	// articles, where the first one has id 1 and links to
+	// another article with id 2, then the query [[1,2]] will
+	// field [true]. If there was no relationship, then the
+	// result is [false]. This applies to all nested slices.
+	CheckRelsExistsByIDs(relIDs [][2]int64) ([]bool, error)
+
+	// RandomArticles will return a specified amount of
+	// randomly picked articles.
+	RandomArticles(amount int) ([]*WikiData, error)
 }

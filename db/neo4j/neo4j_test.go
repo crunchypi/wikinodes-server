@@ -3,30 +3,15 @@ package neo4j
 import (
 	"fmt"
 	"testing"
-	"wikinodes-server/db"
 )
 
 var (
-	// # DB credentials.
+	// DB credentials.
 	uri = "neo4j://localhost:7687"
 	usr = ""
 	pwd = ""
-	// # Global db manager.
-	manager db.DBManager = nil
-
-	// # This test will search for a node,
-	// # so it is necessary to specify a
-	// # known title which is attached to
-	// # a db node.
-	knownNodeTitle = "Art"
-	// # Known neighbours (titles) of above.
-	knownNodeNeigh = []string{
-		"Abstract animation",
-		"Art history",
-		"Art manifesto",
-		"Art movement",
-		"Avant-garde",
-	}
+	// Global db manager.
+	n *Neo4jManager = nil
 )
 
 func init() {
@@ -41,94 +26,169 @@ func init() {
 		msg := fmt.Sprintf("db connection err: %v", err)
 		panic(msg)
 	}
-	manager = m
+	n = m
 
-	// #
-	if knownNodeTitle == "" {
-		panic("No known searchable node is set.")
+}
+
+// ------------ a few methods for creating data --------------- //
+func (n *Neo4jManager) clear() error {
+	return n.execute(executeParams{
+		cypher: "MATCH (n:WikiNode) DETACH DELETE n",
+	})
+}
+
+func (n *Neo4jManager) createNode(title, content, html string) error {
+	return n.execute(executeParams{
+		cypher: "CREATE (:WikiNode {title:$title, html:$html, content:$content})",
+		bindings: map[string]interface{}{
+			"title": title, "html": html, "content": content},
+		callback: nil,
+	})
+}
+
+func (n *Neo4jManager) createNodesAndRel(vTitle, wTitle string) error {
+	return n.execute(executeParams{
+		cypher:   "CREATE (:WikiNode{title:$vTitle})-[:links]->(:WikiNode{title:$wTitle})",
+		bindings: map[string]interface{}{"vTitle": vTitle, "wTitle": wTitle},
+		callback: nil,
+	})
+}
+
+// ------------------------------------------------------------ //
+
+func TestSearchArticlesByTitle(t *testing.T) {
+	n.clear()
+	defer n.clear()
+	title, content, html := "a", "", ""
+	n.createNode(title, content, html)
+	data, err := n.SearchArticlesByTitle(title)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) == 0 {
+		t.Fatal("empty result")
+	}
+	if data[0].Title != title {
+		t.Fatal("unexpected result: ", data[0].Title)
+	}
+}
+
+func TestSearchArticlesByContent(t *testing.T) {
+	n.clear()
+	defer n.clear()
+
+	title, content, html := "a", "b", "c"
+	n.createNode(title, content, html)
+
+	res, err := n.SearchArticlesByContent(content, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res[0].Title != title {
+		t.Fatal("got incorrect result")
 	}
 
 }
 
-func TestSearchNodeBrief(t *testing.T) {
+func TestSearchArticlesByID(t *testing.T) {
+	n.clear()
+	defer n.clear()
+	title, content, html := "a", "", ""
+	n.createNode(title, content, html)
 
-	res, err := manager.SearchNodeBrief(knownNodeTitle)
-	if err != nil {
-		t.Error("Fetch err")
+	// # Get and check unsafely for brevity. The
+	// # previous test checks this properly.
+	data, _ := n.SearchArticlesByTitle(title)
+	if data[0].Title != title {
+		t.Fatal("unexpected title result: ", data[0].Title)
 	}
 
-	if len(res) == 0 || res[0].Title != knownNodeTitle {
-		t.Error("Empty or incorrect result")
+	res, _ := n.SearchArticlesByID(data[0].ID)
+	if data[0].Title != res[0].Title {
+		t.Fatal("unexpected id result")
 	}
 }
 
-func TestSearchNode(t *testing.T) {
-	res, err := manager.SearchNode(knownNodeTitle)
-	if err != nil {
-		t.Error("Fetch err")
-	}
+func TestSearchArticlesNeighsByID(t *testing.T) {
+	n.clear()
+	defer n.clear()
+	vTitle, wTitle := "v", "w"
+	n.createNodesAndRel(vTitle, wTitle)
 
-	if len(res) == 0 || res[0].Title != knownNodeTitle {
-		t.Error("Empty or incorrect result")
+	data, _ := n.SearchArticlesByTitle(vTitle)
+	res, _ := n.SearchArticlesNeighsByID(data[0].ID, 1)
+
+	if res[0].Title != wTitle {
+		t.Fatal("did not get neighbour")
 	}
 }
 
-func TestSearchNodeNeighBrief(t *testing.T) {
-	res, err := manager.SearchNodeNeighBrief(
-		knownNodeTitle,
-		[]string{},
-		len(knownNodeNeigh),
-	)
-	if err != nil {
-		t.Error("Fetch err")
+func TestSearchArticlesHTMLByID(t *testing.T) {
+	n.clear()
+	defer n.clear()
+
+	title, content, html := "v", "", "some content"
+	n.createNode(title, content, html)
+
+	data, _ := n.SearchArticlesByTitle(title)
+	res, _ := n.SearchArticlesHTMLByID(data[0].ID)
+	if res != html {
+		t.Fatal("expected html, got: " + res)
 	}
-	resTitles := make([]string, 0, len(res))
-	for _, w := range res {
-		resTitles = append(resTitles, w.Title)
+}
+
+func TestCheckRelsExistsByIDs(t *testing.T) {
+	n.clear()
+	defer n.clear()
+
+	vTitle, wTitle := "v", "w"
+	n.createNode(vTitle, "", "")
+	n.createNode(wTitle, "", "")
+
+	// # This section should fail since there are no rels.
+	vData, _ := n.SearchArticlesByTitle(vTitle)
+	wData, _ := n.SearchArticlesByTitle(wTitle)
+
+	r1, _ := n.CheckRelsExistsByIDs([][2]int64{{vData[0].ID, wData[0].ID}})
+	if r1[0] == true {
+		t.Fatal("rel check should be false")
 	}
-	for _, knownNeigh := range knownNodeNeigh {
-		if !contains(knownNeigh, resTitles) {
-			t.Error(fmt.Sprintf("Did not get %s",
-				knownNeigh))
+	n.clear()
+
+	// # This section should _not_ fail since there are rels.
+	n.createNodesAndRel(vTitle, wTitle)
+	vData, _ = n.SearchArticlesByTitle(vTitle)
+	wData, _ = n.SearchArticlesByTitle(wTitle)
+
+	r2, _ := n.CheckRelsExistsByIDs([][2]int64{{vData[0].ID, wData[0].ID}})
+	if r2[0] == false {
+		t.Fatal("rel check should be true")
+	}
+
+}
+
+func TestRandomArticles(t *testing.T) {
+	n.clear()
+	defer n.clear()
+
+	// # Create a number of titles and use them for node creation
+	titles := make([]string, 0, 100)
+	for i := 0; i < 100; i++ {
+		titles = append(titles, fmt.Sprintf("%v", i))
+	}
+	for _, title := range titles {
+		n.createNode(title, "", "")
+	}
+
+	// # Check for thrice in a row, should be unlikely
+	matches := 0
+	for i := 0; i < 3; i++ {
+		res, _ := n.RandomArticles(1)
+		if res[0].Title == titles[50] { // # 50 is arbitrary.
+			matches += 1
 		}
 	}
-}
-
-func TestRandomNodesBrief(t *testing.T) {
-	res1, err1 := manager.RandomNodesBrief(1)
-	res2, err2 := manager.RandomNodesBrief(1)
-	if err1 != nil || err2 != nil {
-		s := fmt.Sprintf("node fetch failed: no1: %s, no2: %s",
-			err1, err2)
-		t.Error(s)
+	if matches == 3 {
+		t.Fatal("unlikely result (same 3 times in a row)")
 	}
-	if res1[0].Title == res2[0].Title {
-		t.Error("rand test: both titles are equal. Try again?")
-	}
-
-}
-
-func TestCheckRel(t *testing.T) {
-	// # This order should be correct, but naturally depends on
-	// # 'knownNodeNeigh' & 'knownNodeTitle'
-	q := [][2]string{[2]string{knownNodeNeigh[0], knownNodeTitle}}
-	res, err := manager.CheckRel(q)
-	if err != nil {
-		t.Error("unexpected error")
-	}
-	if res[0] != true {
-		t.Errorf("unexpected result: not neighbours. %v", res)
-	}
-
-	// # Test for false positive.
-
-	q = [][2]string{[2]string{"LAHDfL", "DPSBPP"}}
-	res, err = manager.CheckRel(q)
-	if err != nil {
-		t.Error("unexpected error")
-	}
-	if res[0] != false {
-		t.Errorf("unexpected result: not neighbours. %v", res)
-	}
-
 }
