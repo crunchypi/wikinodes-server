@@ -18,7 +18,7 @@ type executeParams struct {
 // Neo4jManager implements db.DBManager interface.
 // But seriously, why can't this be done like the
 // Rust folks do it, ya know, like sane people?!?
-//								   __		   _
+//
 // 			i m p l i c i t 		\(︶︹ ︺')/
 //
 var _ db.DBManager = &Neo4jManager{}
@@ -31,7 +31,7 @@ type Neo4jManager struct {
 
 // New attempts to return Neo4jManager with an active
 // Neo4j driver.
-func New(uri, usr, pwd string) (db.DBManager, error) {
+func New(uri, usr, pwd string) (*Neo4jManager, error) {
 	new := Neo4jManager{}
 
 	driver, err := neo4j.NewDriver(

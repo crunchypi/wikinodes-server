@@ -1,21 +1,19 @@
 package neo4j
 
 import (
-	"fmt"
-	"wikinodes-server/db"
-
 	"github.com/neo4j/neo4j-go-driver/neo4j"
+	"wikinodes-server/db"
 )
 
-// # This file contains exported funcs (the API)
-// # of this pkg -- they communicate with the db.
-// # The purpose is to satisfy the db.DBManager
-// # behaviour in db/protocols.go.
-// #
-// #
-// #
+// This file contains exported funcs (the API)
+// of this pkg -- they communicate with the db.
+// The purpose is to satisfy the db.DBManager
+// behaviour in db/protocols.go.
+//
+//
+//
 
-// # ---------------- utils ------------------ //
+// ---------------- utils ------------------ //
 
 // simple 'contains' func, because yay go!
 func contains(s string, others []string) bool {
@@ -27,171 +25,157 @@ func contains(s string, others []string) bool {
 	return false
 }
 
-// # ----------------------------------------- //
+// ----------------------------------------- //
 
-// SearchNodeBrief uses a title to search for a node in the db.
-// The result is a slice of WikiDataBrief pointers.
-func (n *Neo4jManager) SearchNodeBrief(
-	title string) (
-	[]*db.WikiDataBrief, error,
+// ------------ prefabs below -------------- //
+
+// SearchArticlesByID will search through articles
+// by their IDs and return all matches.
+func (n *Neo4jManager) SearchArticlesByID(id int64) ([]*db.WikiData, error,
 ) {
-	res := make([]*db.WikiDataBrief, 0, 10) // # 10 is arbitrary.
-
-	alias := "n"
-	aID, aTitle, csv := aliasedPropsBrief(alias)
-	node := cqlNode(alias, true)
-	cql := fmt.Sprintf("MATCH %s RETURN %s", node, csv)
-
-	// # Execute cql with bindings, where..
+	res := make([]*db.WikiData, 0, 1) // # 1 is logically expected.
+	cql := `
+		MATCH (v:WikiData)
+		WHERE id(v) = $id
+		RETURN id(v) as i, v.title as t 
+	`
 	err := n.execute(executeParams{
 		cypher:   cql,
-		bindings: map[string]interface{}{nodeSpec.title: title},
+		bindings: map[string]interface{}{"id": id},
 		callback: func(r neo4j.Result) {
-			// # Try extract data.
-			newNode, ok := n.unpackWikiDataBrief(r, aID, aTitle)
+			v, ok := n.unpackWikiData(r, "i", "t")
 			if ok {
-				res = append(res, newNode)
+				res = append(res, v)
 			}
 		},
 	})
-
 	return res, err
 }
 
-// SearchNode uses a title to search for a node in the db.
-// The result is a slice of WikiData pointers.
-func (n *Neo4jManager) SearchNode(title string) ([]*db.WikiData, error) {
-	res := make([]*db.WikiData, 0, 10) // # 10 is arbitrary.
-
-	/// # Helpers for cql construction and result unwrapping
-	alias := "n"
-	aID, aTitle, aHTML, csv := aliasedProps(alias)
-	node := cqlNode(alias, true)
-	cql := fmt.Sprintf("MATCH %s RETURN %s", node, csv)
-
-	// # Execute cql with bindings, where callback is ..
-	err := n.execute(executeParams{
-		cypher:   cql,
-		bindings: map[string]interface{}{nodeSpec.title: title},
-		callback: func(r neo4j.Result) {
-			// # .. trying to extract data.
-			newNode, ok := n.unpackWikiData(r, aID, aTitle, aHTML)
-			if ok {
-				res = append(res, newNode)
-			}
-
-		},
-	})
-
-	return res, err
-}
-
-// SearchNodeNeighBrief uses a <title> to search any direct bi-directional
-// neighbours of a node with that title. Neihbours with titles in <exclude>
-// are ignored and the search is limited to <limit>.
-func (n *Neo4jManager) SearchNodeNeighBrief(
-	title string, exclude []string, limit int) (
-	[]*db.WikiDataBrief, error,
+// SearchArticlesByTitle will search through articles
+// by their title and return all matches.
+func (n *Neo4jManager) SearchArticlesByTitle(title string) ([]*db.WikiData, error,
 ) {
-	res := make([]*db.WikiDataBrief, 0, limit)
-
-	// # Helpers for cql construction and result unwrapping
-	vAlias, wAlias := "v", "w"
-	wID, wTitle, csv := aliasedPropsBrief(wAlias)
-	v, w := cqlNode(vAlias, true), cqlNode(wAlias, false)
-
-	cql := fmt.Sprintf(`
-		MATCH %s, %s
-		WHERE (%s)-[]->(%s)
-		   OR (%s)-[]->(%s)
-	   RETURN %s LIMIT %d
-	`, v, w, vAlias, wAlias, wAlias, vAlias, csv, limit)
-
-	// # Execute cql with bindings, where..
+	res := make([]*db.WikiData, 0, 5) // # 5 is arbitrary.
+	cql := `
+		MATCH (v:WikiData {title:$title}) RETURN id(v) as i, v.title as t 
+	`
 	err := n.execute(executeParams{
 		cypher:   cql,
-		bindings: map[string]interface{}{nodeSpec.title: title},
+		bindings: map[string]interface{}{"title": title},
 		callback: func(r neo4j.Result) {
-			// # Try extract data.
-			newNode, ok := n.unpackWikiDataBrief(r, wID, wTitle)
-			// # Dont add junk.
-			if !ok {
-				return
+			v, ok := n.unpackWikiData(r, "i", "t")
+			if ok {
+				res = append(res, v)
 			}
-			// # Dont add nodes that are not wanted..
-			if contains(newNode.Title, exclude) {
-				return
-			}
-			res = append(res, newNode)
-
 		},
 	})
-
 	return res, err
 }
 
-// RandomNodesBrief returns a specified <amount> of random nodes from the db.
-func (n *Neo4jManager) RandomNodesBrief(amount int) ([]*db.WikiDataBrief, error) {
-	res := make([]*db.WikiDataBrief, 0, amount)
-
-	// # Helpers for cql construction and result unwrapping.
-	alias := "n"
-	node := cqlNode(alias, false)
-	id, title, csv := aliasedPropsBrief(alias)
-
-	cql := fmt.Sprintf("MATCH %s WHERE rand() < 0.1 RETURN %s LIMIT %d",
-		node, csv, amount)
-	// # Execute cql with bindings, where..
+// SearchArticlesByContent will do a full-text search through
+// the database for content that contains the specified string.
+// This will be a search on an index named 'ArticleContantIndex'
+// so thah must be enabled with the following indexing:
+// 	CALL db.index.fulltext.createNodeIndex(
+//		"ArticleContentIndex",["WikiData"],["content"])
+func (n *Neo4jManager) SearchArticlesByContent(
+	str string, limit int) ([]*db.WikiData, error,
+) {
+	res := make([]*db.WikiData, 0, limit)
+	cql := `
+		CALL db.index.fulltext.queryNodes(
+			"ArticleContentIndex", $str
+		) YIELD node
+		RETURN id(node) as i, node.title as t LIMIT $limit 
+	`
 	err := n.execute(executeParams{
-		cypher: cql,
+		cypher:   cql,
+		bindings: map[string]interface{}{"str": str, "limit": limit},
 		callback: func(r neo4j.Result) {
-			// # Try extract data.
-			newNode, ok := n.unpackWikiDataBrief(r, id, title)
-			// # Dont add junk.
-			if !ok {
-				return
+			v, ok := n.unpackWikiData(r, "i", "t")
+			if ok {
+				res = append(res, v)
 			}
-			res = append(res, newNode)
 		},
 	})
-
 	return res, err
 }
 
-// CheckRel Checks if relationships exists between tuples
-// of titles. Example: If a relationship exists in the db
-// such that A-[]->B, and 'rels' = [[A, B]], then the
-// return is [true]. Such relationships can be checked
-// in bulk, hence slice of slices. Note; this method isn't
-// optimised, so it'll make a db request for each tuple.
-func (n *Neo4jManager) CheckRel(rels [][2]string) ([]bool, error) {
-	res := make([]bool, len(rels))
+// SearchArticlesNeightsByIDs will search for article 'A'
+// by its ID and return articles that were linked from 'A'.
+func (n *Neo4jManager) SearchArticlesNeighsByID(
+	id int64, limit int) ([]*db.WikiData, error,
+) {
+	res := make([]*db.WikiData, 0, 10) // # 10 is arbitrary
+	cql := `
+		 MATCH (v:WikiData)-[:HYPERLINKS]->(w:WikiData)
+		 WHERE id(v) = $id
+		  WITH w, rand() as r
+		RETURN id(w) as i, w.title as t
+		 ORDER BY r
+		 LIMIT $limit
+	`
+	err := n.execute(executeParams{
+		cypher:   cql,
+		bindings: map[string]interface{}{"id": id, "limit": limit},
+		callback: func(r neo4j.Result) {
+			v, ok := n.unpackWikiData(r, "i", "t")
+			if ok {
+				res = append(res, v)
+			}
+		},
+	})
+	return res, err
+}
 
-	// # Construct node for [0] in tuple.
-	vPropAlias := "vp" // # For binding.
-	v := fmt.Sprintf("(v:%s {%s:$%s})",
-		nodeSpec.label, nodeSpec.title, vPropAlias)
+// SearchArticlesHTMLByID will get the HTML from an article
+// with the specified ID.
+func (n *Neo4jManager) SearchArticlesHTMLByID(id int64) (string, error) {
+	res := ""
+	cql := `
+		MATCH (v:WikiData)
+		WHERE id(v) = $id
+		RETURN v.html as html 
+	`
+	err := n.execute(executeParams{
+		cypher:   cql,
+		bindings: map[string]interface{}{"id": id},
+		callback: func(r neo4j.Result) {
+			v, ok := n.unpackString(r, "html")
+			if ok {
+				res = v
+			}
+		},
+	})
+	return res, err
 
-	// # Construct node for [1] in tuple.
-	wPropAlias := "wp" // # For binding.
-	w := fmt.Sprintf("(w:%s {%s:$%s})",
-		nodeSpec.label, nodeSpec.title, wPropAlias)
+}
 
-	// # Only interested if match is successful, so 'RETURN'
-	// # doesn't have to be much more complex than '1'
-	cql := fmt.Sprintf("MATCH %s-[]->%s RETURN 1", v, w)
-
-	// # Check each tuple.
-	for i := 0; i < len(rels); i++ {
-		// # Execute cql with bindings, where..
+// CheckRelsExistByIDs will check if there is a relationship
+// between articles, i.e if one links another. The Expected
+// argument should be an slice containing another two-element
+// array where index 0 should have a 'from' id and index 0
+// should have a 'to' id. For example if there are two
+// articles, where the first one has id 1 and links to
+// another article with id 2, then the query [[1,2]] will
+// field [true]. If there was no relationship, then the
+// result is [false]. This applies to all nested slices.
+func (n *Neo4jManager) CheckRelsExistByIDs(relIDs [][2]int64) ([]bool, error,
+) {
+	res := make([]bool, len(relIDs))
+	cql := `
+		MATCH (v:WikiData)-[:HYPERLINKS]->(w:WikiData)
+		WHERE id(v) = $vID
+		  AND id(w) = $wID
+	   RETURN v.title, w.title 
+	`
+	for i := 0; i < len(relIDs); i++ {
 		err := n.execute(executeParams{
 			cypher: cql,
 			bindings: map[string]interface{}{
-				vPropAlias: rels[i][0],
-				wPropAlias: rels[i][1],
-			},
+				"vID": relIDs[i][0], "wID": relIDs[i][1]},
 			callback: func(r neo4j.Result) {
-				// # Simply flip 'res' bool at 'i' on success.
 				if len(r.Record().Values()) > 0 {
 					res[i] = true
 				}
@@ -201,6 +185,30 @@ func (n *Neo4jManager) CheckRel(rels [][2]string) ([]bool, error) {
 			return res, err
 		}
 	}
-
 	return res, nil
+}
+
+// RandomArticles will return a specified amount of
+// randomly picked articles.
+func (n *Neo4jManager) RandomArticles(amount int) ([]*db.WikiData, error,
+) {
+	res := make([]*db.WikiData, 0, amount)
+	cql := `
+	    MATCH (v:WikiData)
+	     WITH v, rand() as r
+	   RETURN id(v) as i, v.title as t
+	    ORDER BY r
+	    LIMIT $amount
+	`
+	err := n.execute(executeParams{
+		cypher:   cql,
+		bindings: map[string]interface{}{"amount": amount},
+		callback: func(r neo4j.Result) {
+			v, ok := n.unpackWikiData(r, "i", "t")
+			if ok {
+				res = append(res, v)
+			}
+		},
+	})
+	return res, err
 }
