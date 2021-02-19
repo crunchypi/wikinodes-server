@@ -35,7 +35,7 @@ func (n *Neo4jManager) SearchArticlesByID(id int64) ([]*db.WikiData, error,
 ) {
 	res := make([]*db.WikiData, 0, 1) // # 1 is logically expected.
 	cql := `
-		MATCH (v:WikiNode)
+		MATCH (v:WikiData)
 		WHERE id(v) = $id
 		RETURN id(v) as i, v.title as t 
 	`
@@ -58,7 +58,7 @@ func (n *Neo4jManager) SearchArticlesByTitle(title string) ([]*db.WikiData, erro
 ) {
 	res := make([]*db.WikiData, 0, 5) // # 5 is arbitrary.
 	cql := `
-		MATCH (v:WikiNode {title:$title}) RETURN id(v) as i, v.title as t 
+		MATCH (v:WikiData {title:$title}) RETURN id(v) as i, v.title as t 
 	`
 	err := n.execute(executeParams{
 		cypher:   cql,
@@ -78,7 +78,7 @@ func (n *Neo4jManager) SearchArticlesByTitle(title string) ([]*db.WikiData, erro
 // This will be a search on an index named 'ArticleContantIndex'
 // so thah must be enabled with the following indexing:
 // 	CALL db.index.fulltext.createNodeIndex(
-//		"ArticleContentIndex",["WikiNode"],["content"])
+//		"ArticleContentIndex",["WikiData"],["content"])
 func (n *Neo4jManager) SearchArticlesByContent(
 	str string, limit int) ([]*db.WikiData, error,
 ) {
@@ -109,7 +109,7 @@ func (n *Neo4jManager) SearchArticlesNeighsByID(
 ) {
 	res := make([]*db.WikiData, 0, 10) // # 10 is arbitrary
 	cql := `
-		MATCH (v:WikiNode)-[:links]->(w:WikiNode)
+		MATCH (v:WikiData)-[:HYPERLINKS]->(w:WikiData)
 		WHERE id(v) = $id
 		RETURN id(w) as i, w.title as t
 		LIMIT $limit
@@ -132,7 +132,7 @@ func (n *Neo4jManager) SearchArticlesNeighsByID(
 func (n *Neo4jManager) SearchArticlesHTMLByID(id int64) (string, error) {
 	res := ""
 	cql := `
-		MATCH (v:WikiNode)
+		MATCH (v:WikiData)
 		WHERE id(v) = $id
 		RETURN v.html as html 
 	`
@@ -150,7 +150,7 @@ func (n *Neo4jManager) SearchArticlesHTMLByID(id int64) (string, error) {
 
 }
 
-// CheckRelsExistsByIDs will check if there is a relationship
+// CheckRelsExistByIDs will check if there is a relationship
 // between articles, i.e if one links another. The Expected
 // argument should be an slice containing another two-element
 // array where index 0 should have a 'from' id and index 0
@@ -159,11 +159,11 @@ func (n *Neo4jManager) SearchArticlesHTMLByID(id int64) (string, error) {
 // another article with id 2, then the query [[1,2]] will
 // field [true]. If there was no relationship, then the
 // result is [false]. This applies to all nested slices.
-func (n *Neo4jManager) CheckRelsExistsByIDs(relIDs [][2]int64) ([]bool, error,
+func (n *Neo4jManager) CheckRelsExistByIDs(relIDs [][2]int64) ([]bool, error,
 ) {
 	res := make([]bool, len(relIDs))
 	cql := `
-		MATCH (v:WikiNode)-[:links]->(w:WikiNode)
+		MATCH (v:WikiData)-[:HYPERLINKS]->(w:WikiData)
 		WHERE id(v) = $vID
 		  AND id(w) = $wID
 	   RETURN v.title, w.title 
@@ -192,9 +192,9 @@ func (n *Neo4jManager) RandomArticles(amount int) ([]*db.WikiData, error,
 ) {
 	res := make([]*db.WikiData, 0, amount)
 	cql := `
-		MATCH (v:WikiNode)
+		MATCH (v:WikiData)
 		 WITH COUNT(v) as c
-		MATCH (v:WikiNode)
+		MATCH (v:WikiData)
 		WHERE rand() < 1/c+0.1 // Decreasing chance per node + a bias.
 	   RETURN id(v) as i, v.title as t LIMIT $amount  
 	`

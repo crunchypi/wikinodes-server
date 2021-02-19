@@ -33,13 +33,13 @@ func init() {
 // ------------ a few methods for creating data --------------- //
 func (n *Neo4jManager) clear() error {
 	return n.execute(executeParams{
-		cypher: "MATCH (n:WikiNode) DETACH DELETE n",
+		cypher: "MATCH (n:WikiData) DETACH DELETE n",
 	})
 }
 
 func (n *Neo4jManager) createNode(title, content, html string) error {
 	return n.execute(executeParams{
-		cypher: "CREATE (:WikiNode {title:$title, html:$html, content:$content})",
+		cypher: "CREATE (:WikiData {title:$title, html:$html, content:$content})",
 		bindings: map[string]interface{}{
 			"title": title, "html": html, "content": content},
 		callback: nil,
@@ -47,8 +47,9 @@ func (n *Neo4jManager) createNode(title, content, html string) error {
 }
 
 func (n *Neo4jManager) createNodesAndRel(vTitle, wTitle string) error {
+	cql := "CREATE (:WikiData{title:$vTitle})-[:HYPERLINKS]->(:WikiData{title:$wTitle})"
 	return n.execute(executeParams{
-		cypher:   "CREATE (:WikiNode{title:$vTitle})-[:links]->(:WikiNode{title:$wTitle})",
+		cypher:   cql,
 		bindings: map[string]interface{}{"vTitle": vTitle, "wTitle": wTitle},
 		callback: nil,
 	})
@@ -117,7 +118,7 @@ func TestSearchArticlesNeighsByID(t *testing.T) {
 
 	data, _ := n.SearchArticlesByTitle(vTitle)
 	res, _ := n.SearchArticlesNeighsByID(data[0].ID, 1)
-
+	t.Log("Got here")
 	if res[0].Title != wTitle {
 		t.Fatal("did not get neighbour")
 	}
@@ -137,7 +138,7 @@ func TestSearchArticlesHTMLByID(t *testing.T) {
 	}
 }
 
-func TestCheckRelsExistsByIDs(t *testing.T) {
+func TestCheckRelsExistByIDs(t *testing.T) {
 	n.clear()
 	defer n.clear()
 
@@ -149,7 +150,7 @@ func TestCheckRelsExistsByIDs(t *testing.T) {
 	vData, _ := n.SearchArticlesByTitle(vTitle)
 	wData, _ := n.SearchArticlesByTitle(wTitle)
 
-	r1, _ := n.CheckRelsExistsByIDs([][2]int64{{vData[0].ID, wData[0].ID}})
+	r1, _ := n.CheckRelsExistByIDs([][2]int64{{vData[0].ID, wData[0].ID}})
 	if r1[0] == true {
 		t.Fatal("rel check should be false")
 	}
@@ -160,7 +161,7 @@ func TestCheckRelsExistsByIDs(t *testing.T) {
 	vData, _ = n.SearchArticlesByTitle(vTitle)
 	wData, _ = n.SearchArticlesByTitle(wTitle)
 
-	r2, _ := n.CheckRelsExistsByIDs([][2]int64{{vData[0].ID, wData[0].ID}})
+	r2, _ := n.CheckRelsExistByIDs([][2]int64{{vData[0].ID, wData[0].ID}})
 	if r2[0] == false {
 		t.Fatal("rel check should be true")
 	}

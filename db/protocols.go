@@ -34,7 +34,7 @@ type DBManager interface {
 	// another article with id 2, then the query [[1,2]] will
 	// field [true]. If there was no relationship, then the
 	// result is [false]. This applies to all nested slices.
-	CheckRelsExistsByIDs(relIDs [][2]int64) ([]bool, error)
+	CheckRelsExistByIDs(relIDs [][2]int64) ([]bool, error)
 
 	// RandomArticles will return a specified amount of
 	// randomly picked articles.
