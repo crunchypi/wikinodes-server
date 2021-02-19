@@ -109,10 +109,12 @@ func (n *Neo4jManager) SearchArticlesNeighsByID(
 ) {
 	res := make([]*db.WikiData, 0, 10) // # 10 is arbitrary
 	cql := `
-		MATCH (v:WikiData)-[:HYPERLINKS]->(w:WikiData)
-		WHERE id(v) = $id
+		 MATCH (v:WikiData)-[:HYPERLINKS]->(w:WikiData)
+		 WHERE id(v) = $id
+		  WITH w, rand() as r
 		RETURN id(w) as i, w.title as t
-		LIMIT $limit
+		 ORDER BY r
+		 LIMIT $limit
 	`
 	err := n.execute(executeParams{
 		cypher:   cql,
@@ -192,11 +194,11 @@ func (n *Neo4jManager) RandomArticles(amount int) ([]*db.WikiData, error,
 ) {
 	res := make([]*db.WikiData, 0, amount)
 	cql := `
-		MATCH (v:WikiData)
-		 WITH COUNT(v) as c
-		MATCH (v:WikiData)
-		WHERE rand() < 1/c+0.1 // Decreasing chance per node + a bias.
-	   RETURN id(v) as i, v.title as t LIMIT $amount  
+	    MATCH (v:WikiData)
+	     WITH v, rand() as r
+	   RETURN id(v) as i, v.title as t
+	    ORDER BY r
+	    LIMIT $amount
 	`
 	err := n.execute(executeParams{
 		cypher:   cql,

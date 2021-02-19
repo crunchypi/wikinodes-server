@@ -173,8 +173,8 @@ func TestRandomArticles(t *testing.T) {
 	defer n.clear()
 
 	// # Create a number of titles and use them for node creation
-	titles := make([]string, 0, 100)
-	for i := 0; i < 100; i++ {
+	titles := make([]string, 0, 10)
+	for i := 0; i < 10; i++ {
 		titles = append(titles, fmt.Sprintf("%v", i))
 	}
 	for _, title := range titles {
@@ -185,7 +185,7 @@ func TestRandomArticles(t *testing.T) {
 	matches := 0
 	for i := 0; i < 3; i++ {
 		res, _ := n.RandomArticles(1)
-		if res[0].Title == titles[50] { // # 50 is arbitrary.
+		if res[0].Title == titles[5] { // # 5 is arbitrary.
 			matches += 1
 		}
 	}
