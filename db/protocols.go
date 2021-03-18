@@ -1,9 +1,8 @@
 package db
 
-// DBManager specifies interface for necessary work, which is
-// defined by sub-packages (concrete db impl), and used by
-// the server/api to forward data.
-type DBManager interface {
+// StoredWikiManager specifies interface for interacting with
+// a DB which keeps wikipedia articles.
+type StoredWikiManager interface {
 	// SearchArticlesByID will search through articles by
 	// their IDs and return all matches.
 	SearchArticlesByID(id int64) ([]*WikiData, error)

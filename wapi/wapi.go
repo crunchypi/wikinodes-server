@@ -17,11 +17,11 @@ var (
 // handler serves as a bridge between the app and
 // other packages, mainly db.
 type handler struct {
-	db db.DBManager
+	db db.StoredWikiManager
 }
 
 // Start starts the app.
-func Start(db db.DBManager) error {
+func Start(db db.StoredWikiManager) error {
 	// # Enable interface to other ports of this api.
 	handler := handler{db: db}
 	handler.setRoutes()
