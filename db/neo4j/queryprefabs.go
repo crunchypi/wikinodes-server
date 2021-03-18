@@ -107,13 +107,17 @@ func (n *Neo4jManager) SearchArticlesByContent(
 func (n *Neo4jManager) SearchArticlesNeighsByID(
 	id int64, limit int) ([]*db.WikiData, error,
 ) {
-	res := make([]*db.WikiData, 0, 10) // # 10 is arbitrary
+	res := make([]*db.WikiData, 0, limit)
 	cql := `
-		 MATCH (v:WikiData)-[:HYPERLINKS]->(w:WikiData)
+		 MATCH (v:WikiData)-[rel:HYPERLINKS]->(w:WikiData)
 		 WHERE id(v) = $id
-		  WITH w, rand() as r
+		  WITH w,
+		  CASE
+		  		WHEN NOT EXISTS(rel.lookups) THEN 1 * rand()
+				ELSE rel.lookups * rand()
+		END AS ord
 		RETURN id(w) as i, w.title as t
-		 ORDER BY r
+		 ORDER BY ord DESC
 		 LIMIT $limit
 	`
 	err := n.execute(executeParams{
@@ -211,4 +215,29 @@ func (n *Neo4jManager) RandomArticles(amount int) ([]*db.WikiData, error,
 		},
 	})
 	return res, err
+}
+
+// IncrementRel increments the relationship between two nodes with
+// the given IDs. The incremented relationship is of type HYPERLINKS,
+// where property is 'lookups'. This method is intended to be used
+// for increments such for the purpose of treating the graph as a
+// markov-chain (for article recommendation). Note, the 'lookups'
+// property does not need to exist before using this method.
+func (n *Neo4jManager) IncrementRel(vID, wID int64) error {
+	cql := `
+		MATCH (v:WikiData)-[r:HYPERLINKS]->(w:WikiData)
+		WHERE id(v) = $vID
+		  AND id(w) = $wID
+		WITH r,
+		CASE
+			WHEN NOT EXISTS(r.lookups) THEN 1
+			ELSE r.lookups + 1
+		END as upd
+		SET r.lookups = upd
+	`
+	return n.execute(executeParams{
+		cypher: cql,
+		bindings: map[string]interface{}{
+			"vID": vID, "wID": wID},
+	})
 }

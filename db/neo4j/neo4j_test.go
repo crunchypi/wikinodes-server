@@ -47,7 +47,7 @@ func (n *Neo4jManager) createNode(title, content, html string) error {
 }
 
 func (n *Neo4jManager) createNodesAndRel(vTitle, wTitle string) error {
-	cql := "CREATE (:WikiData{title:$vTitle})-[:HYPERLINKS]->(:WikiData{title:$wTitle})"
+	cql := "MERGE (:WikiData{title:$vTitle})-[:HYPERLINKS]->(:WikiData{title:$wTitle})"
 	return n.execute(executeParams{
 		cypher:   cql,
 		bindings: map[string]interface{}{"vTitle": vTitle, "wTitle": wTitle},
@@ -191,5 +191,42 @@ func TestRandomArticles(t *testing.T) {
 	}
 	if matches == 3 {
 		t.Fatal("unlikely result (same 3 times in a row)")
+	}
+}
+
+func TestIncrementRelAndSearchArticlesNeighsByID(t *testing.T) {
+	n.clear()
+	defer n.clear()
+	// # rel: q -> a,b,c
+	n.execute(executeParams{cypher: `
+		CREATE (q:WikiData{title:'q'})-[:HYPERLINKS]
+								->(:WikiData{title:'a'})
+		CREATE (q)-[:HYPERLINKS]->(:WikiData{title:'b'})
+		CREATE (q)-[:HYPERLINKS]->(:WikiData{title:'c'})
+	`})
+	// # Get ID for all new nodes.
+	titles := []string{"q", "a", "b", "c"}
+	ids := make([]int64, 4)
+	for i, v := range titles {
+		r, _ := n.SearchArticlesByTitle(v)
+		ids[i] = (*r[0]).ID
+	}
+	// # Incr rels such that best-fit should be in order: a,b,c
+	for i := 0; i < 200; i++ {
+		n.IncrementRel(ids[0], ids[1])
+	}
+	for i := 0; i < 100; i++ {
+		n.IncrementRel(ids[0], ids[2])
+	}
+	// # Get & check data.
+	res, _ := n.SearchArticlesNeighsByID(ids[0], 3)
+	resTitles := make([]string, 0, 4)
+	for _, v := range res {
+		resTitles = append(resTitles, (*v).Title)
+	}
+
+	if titles[1] != resTitles[0] || titles[2] != resTitles[1] {
+		t.Errorf("wanted %v, got %v. might be a rand issue (retry)",
+			titles[1:], resTitles)
 	}
 }
