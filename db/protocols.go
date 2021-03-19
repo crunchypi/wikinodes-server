@@ -39,3 +39,16 @@ type StoredWikiManager interface {
 	// randomly picked articles.
 	RandomArticles(amount int) ([]*WikiData, error)
 }
+
+// CacheManager specifies interface for using a cache
+// for service improvements.
+type CacheManager interface {
+	// SetLastQueryID tries to set a query id for an ip. Intenden
+	// to be used for keeping track of which Wikipedia Articles a
+	// front-end client searches for, for the purpose of article
+	// recommendation.
+	SetLastQueryID(ip string, id int64) bool
+	// LastQueryID is the counterpart of SetLastQueryID, it simply
+	// tries to retrieve a Wikipedia Article for a given IP.
+	LastQueryID(ip string) (int64, bool)
+}
