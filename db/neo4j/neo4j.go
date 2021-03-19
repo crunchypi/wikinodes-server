@@ -15,13 +15,13 @@ type executeParams struct {
 	callback func(neo4j.Result)
 }
 
-// Neo4jManager implements db.DBManager interface.
+// Neo4jManager implements db.StoredWikiManager.
 // But seriously, why can't this be done like the
-// Rust folks do it, ya know, like sane people?!?
+// Rust folks do it, ya know, like sane people?!
 //
 // 			i m p l i c i t 		\(︶︹ ︺')/
 //
-var _ db.DBManager = &Neo4jManager{}
+var _ db.StoredWikiManager = &Neo4jManager{}
 
 // Neo4jManager -- manages neo4j connection and friends.
 type Neo4jManager struct {

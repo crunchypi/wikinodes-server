@@ -5,10 +5,13 @@ import (
 	"log"
 	"os"
 	"wikinodes-server/db/neo4j"
+	"wikinodes-server/db/redis"
 	"wikinodes-server/wapi"
 )
 
 func main() {
+
+	r := redis.New("localhost", "6379", "", 0)
 	if len(os.Args) != 4 {
 		msg := "API uses Neo4j, requires 3 args: <uri> <usr> <pwd>"
 		log.Fatal(msg)
@@ -20,7 +23,7 @@ func main() {
 		log.Fatal(msg)
 	}
 
-	if err = wapi.Start(n); err != nil {
+	if err = wapi.Start(n, r); err != nil {
 		log.Fatal(err)
 	}
 

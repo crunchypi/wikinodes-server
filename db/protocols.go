@@ -1,9 +1,8 @@
 package db
 
-// DBManager specifies interface for necessary work, which is
-// defined by sub-packages (concrete db impl), and used by
-// the server/api to forward data.
-type DBManager interface {
+// StoredWikiManager specifies interface for interacting with
+// a DB which keeps wikipedia articles.
+type StoredWikiManager interface {
 	// SearchArticlesByID will search through articles by
 	// their IDs and return all matches.
 	SearchArticlesByID(id int64) ([]*WikiData, error)
@@ -39,4 +38,25 @@ type DBManager interface {
 	// RandomArticles will return a specified amount of
 	// randomly picked articles.
 	RandomArticles(amount int) ([]*WikiData, error)
+
+	// IncrementRel increments the relationship between two nodes with
+	// the given IDs. The incremented relationship is of type HYPERLINKS,
+	// where property is 'lookups'. This method is intended to be used
+	// for increments such for the purpose of treating the graph as a
+	// markov-chain (for article recommendation). Note, the 'lookups'
+	// property does not need to exist before using this method.
+	IncrementRel(vID, wID int64) error
+}
+
+// CacheManager specifies interface for using a cache
+// for service improvements.
+type CacheManager interface {
+	// SetLastQueryID tries to set a query id for an ip. Intenden
+	// to be used for keeping track of which Wikipedia Articles a
+	// front-end client searches for, for the purpose of article
+	// recommendation.
+	SetLastQueryID(ip string, id int64) bool
+	// LastQueryID is the counterpart of SetLastQueryID, it simply
+	// tries to retrieve a Wikipedia Article for a given IP.
+	LastQueryID(ip string) (int64, bool)
 }
