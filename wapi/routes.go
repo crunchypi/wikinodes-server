@@ -21,7 +21,7 @@ func (h *handler) setRoutes() {
 	}
 	for k, v := range routes {
 		fmt.Sprintln("Setting route: " + k)
-		http.Handle(k, midDOS(http.HandlerFunc(v)))
+		http.Handle(k, h.midDOS(http.HandlerFunc(v)))
 	}
 }
 
