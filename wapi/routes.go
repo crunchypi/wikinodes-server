@@ -130,6 +130,17 @@ func (h *handler) searchArticlesByNeighs(w http.ResponseWriter, r *http.Request)
 	if ok := h.tryUnpackRequestOptions(w, r, &options); !ok {
 		return
 	}
+	// # Check what the user searched for last time and use that, if
+	// # possible, to increment the relationship between the
+	// # last wiki id -> current wiki id. Used for article recommendation.
+	if ip, ok := extractIP(r); ok {
+		// # Incr the rel if last id is found.
+		if lastID, ok := h.cache.LastQueryID(ip); ok {
+			h.db.IncrementRel(lastID, options.ID)
+		}
+		// # Update cache with new id.
+		h.cache.SetLastQueryID(ip, options.ID)
+	}
 	// # Try db search.
 	res, err := h.db.SearchArticlesNeighsByID(options.ID, options.Limit)
 	// # Try response.

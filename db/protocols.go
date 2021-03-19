@@ -38,6 +38,14 @@ type StoredWikiManager interface {
 	// RandomArticles will return a specified amount of
 	// randomly picked articles.
 	RandomArticles(amount int) ([]*WikiData, error)
+
+	// IncrementRel increments the relationship between two nodes with
+	// the given IDs. The incremented relationship is of type HYPERLINKS,
+	// where property is 'lookups'. This method is intended to be used
+	// for increments such for the purpose of treating the graph as a
+	// markov-chain (for article recommendation). Note, the 'lookups'
+	// property does not need to exist before using this method.
+	IncrementRel(vID, wID int64) error
 }
 
 // CacheManager specifies interface for using a cache
