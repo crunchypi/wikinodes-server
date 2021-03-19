@@ -16,6 +16,14 @@ var (
 	queryIDExpiration = time.Second * 20
 	// Namespace or ip:queryid(wiki) keys.
 	namespaceWikiID = "wikiID"
+	// These two are used to prevent service
+	// spam. An IP is allowed to make x amount
+	// of requests per t amount of time, where
+	// x = dosguardAllowance and
+	// t = dosguardExpiration
+	dosguardExpiration = time.Second * 10
+	dosguardAllowance  = 100
+	namespaceDosguard  = "dg"
 )
 
 type RedisManager struct {
@@ -56,4 +64,32 @@ func (r *RedisManager) LastQueryID(ip string) (int64, bool) {
 		return 0, false
 	}
 	return res, true
+}
+
+// Used to prevent service spam. Calling this method will
+// increment the counter for an IP and check if it has
+// exceeded an allowance over a time period (see pkg vars
+// dosguardAllowance & dosguardExpiration). If True is
+// returned, then the IP is good for more requests.
+func (r *RedisManager) CheckRegDOSIP(ip string) (bool, error) {
+	v, err := r.c.Get(ctx, namespaceDosguard+ip).Result()
+	// # If key doesn't exist, create it with fresh allowance.
+	if err != nil {
+		r.c.Set(ctx, namespaceDosguard+ip, 1, dosguardExpiration)
+		return true, nil
+	}
+	// # Shouldn't be a problem if this method is self-contained
+	// # since an int is guaranteed(?), given the block above.
+	// # But still...
+	count, err := strconv.Atoi(v)
+	if err != nil {
+		return false, err
+	}
+	// # Allowance exceeded.
+	if count+1 > dosguardAllowance {
+		return false, nil
+	}
+	// # Ok: Increment and allow.
+	err = r.c.Incr(ctx, namespaceDosguard+ip).Err()
+	return true, err
 }

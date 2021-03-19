@@ -59,4 +59,11 @@ type CacheManager interface {
 	// LastQueryID is the counterpart of SetLastQueryID, it simply
 	// tries to retrieve a Wikipedia Article for a given IP.
 	LastQueryID(ip string) (int64, bool)
+
+	// Used to prevent service spam. Calling this method will
+	// increment the counter for an IP and check if it has
+	// exceeded an allowance over a time period (see pkg vars
+	// dosguardAllowance & dosguardExpiration). If True is
+	// returned, then the IP is good for more requests.
+	CheckRegDOSIP(ip string) (bool, error)
 }
