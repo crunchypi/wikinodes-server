@@ -1,9 +1,9 @@
 # wikinodes-server
-web-server for the wikinodes project (API)
+web-server/api for the wikinodes project.
 <br>
 
-This repo contains a simple server which is mean to support the 'wikinodes' project. <br>
-It (the server) acts as middleware between an app and a backing database.
+This repo contains a server which is mean to support the 'wikinodes' project. <br>
+It (the server) essentially acts as middleware between an app and a backing database.
 <br>
 App & Database population repos are found at:
   * [wikinodes-app](https://github.com/crunchypi/wikinodes-app) (front-end)
@@ -13,65 +13,101 @@ App & Database population repos are found at:
 
 ### Usage
 
-#### NOTE: The current working branch is 'develop'.
+Dependencies:
+- Neo4j (used for content, specifically Wikipedia articles)
+- Redis (caching of IPs for spam mitigation & a feature related to article recommendation)
 
-To use the server, first start and/or populate a neo4j database with [wikinodes-preprocessing](https://github.com/crunchypi/wikinodes-preprocessing). Population can be done with anything else, of course, but that will likely require some additional work because the names of node labels and fields are hardcoded [here](https://github.com/crunchypi/wikinodes-server/blob/develop/db/neo4j/nodeconstruct.go), as is necessary for this server to do its job.
+To use the server, first start and/or populate a neo4j database with [wikinodes-preprocessing](https://github.com/crunchypi/wikinodes-preprocessing). Population can be done with anything else, of course, but that will likely require some additional work because the db schema might not match up  (labels, field, etc). Still, that can be found [here](https://github.com/crunchypi/wikinodes-preprocessing/blob/master/src/typehelpers.py). Redis has to be started as well.
 
 <br>
 
-When the Neo4j db is up, simply start the server with the line below (uri, usr and pwd is for neo4j). Note, at the moment, the IP & port is static (localhost:1234) and there is no TLS. This will be fixed soon (by 2021).
-```
-sudo go run main.go <uri> <usr> <pwd> # Starts listening at localhost:1234
-```
+When the Neo4j & Redis services are up, configure the server in root/config/config.go, the most important things to look for are uri,usr&pwd for databases and perhaps the ip+port for this server. 
 
 <br>
 
 ### API
 
-The API is simple and has a few endpoints, each of them listed below (more information further down).
-* (**1**) ```ip:port/data/search/node ```  (search wiki data)
-* (**2**) ```ip:port/data/search/neigh```  (search neighbours/related articles of a specific article)
-* (**3**) ```ip:port/data/search/rand ```  (search random nodes)
-* (**4**) ```ip:port/data/check/rels  ```  (check node relationships) 
+The API has 7 endpoints, all of which are JSON over POST. They're all read-only in the sense that you can't directly change any data
+but the 4th one below (../byneigh) is used with Redis to cache searches and use that data to update a relationship weight between
+linked articles in Neo4j for the purpose of article recommendation.
 
+- [```ip:port/data/search/articles/byid```]()
+- [```ip:port/data/search/articles/bytitle```]()
+- [```ip:port/data/search/articles/bycontent```]()
+- [```ip:port/data/search/articles/byneigh```]()
+- [```ip:port/data/html/byid```]()
+- [```ip:port/data/check/relsexist```](#ip:port/data/check/relsexist)
+- [```ip:port/data/random/articles```](#ipportdatarandomarticles)
+
+----
+#### ip:port/data/search/articles/byid
+This endpoint searches the data layer for Wikipedia content (article(s)) by article ID and accepts a JSON of form `{id:int}`.
 <br>
-
-(**1**) This endpoint accepts a json with format ```{"title":string,"brief":bool}```, where "title" represents a wiki article title, while "brief" specifies how much data to request (true gives id&title, false gives id&title&html).
-* Example 1:
-  * curl: ```localhost:1234/data/search/node -d "{\"title\":\"Art\",\"brief\":true}"```
-  * resp: ```[{"id":306,"title":"Art"}, ... ]```
-* Example 2:
-  * curl: ```localhost:1234/data/search/node -d "{\"title\":\"Art\",\"brief\":false}"```
-  * resp: ```[{"id":306,"title":"Art","html":"<some long html string>"}, ... ]```
-  
+curl(v7.68.0) example:
+```
+curl http://ip:port/data/search/articles/byid -d "{\"id\":4279}"
+# Return might be [{"id":4279,"title":"1853"}] if that article exists.
+```
+----
+#### ip:port/data/search/articles/bytitle
+This endpoint searches the data layer for Wikipedia content (article(s)) by title and accepts a JSON of form `{title:string}`
 <br>
-  
-(**2**) This endpoint also accepts a json, though with a bit different options: ```{"title":string,"exclude":[string], "limit":int}```, where "title" represents a wiki article title, "exclude" is a list of article names that are not wanted (these are filtered from the response), while "limit" specifies the max amount of objects that are wanted in the response. Do note that objects included in the response are always "brief", similar to **1, example 1**.
-* Example 1:
-  * curl: ```ip:port/data/search/neigh -d "{\"title\":\"Art\",\"exclude\":[\"Art history\"],\"limit\":2}"```
-  * resp: ```[{"id":2,"title":"Abstract animation"}{...not 'Art history'...}]```
-* Example 2:
-  * curl: ```ip:port/data/search/neigh -d "{\"title\":\"Art\",\"exclude\":[],\"limit\":3}"```
-  * resp: ```[{"id":2,"title":"Abstract animation"},{...},{...}]```
-
+curl(v7.68.0) example:
+```
+curl http://ip:port/data/search/articles/bytitle -d "{\"title\":\"Last Thursdayism\"}"
+# Return might be [{"id":5,"title":"Last Thursdayism"}] if that article exists.
+```
+----
+#### ip:port/data/search/articles/bycontent
+This endpoint searches the data layer for Wikipedia content (article(s)) by looking through the body/content, using
+a JSON of form `{str:string, limit:int}`. Note this relies on DB indexing for performance but should not
+be a problem if the DB is populated with [wikinodes-preprocessing](https://github.com/crunchypi/wikinodes-preprocessing).
 <br>
-
-(**3**) This endpoint accepts a json as well, with format ```{"amount":int}```, where "amount" specifies how many random nodes/objects to get. As with the previous endpoint, the return data is also "brief".
-* Example 1:
-  * curl: ```ip:port/data/search/rand -d "{\"amount\":1}```
-  * resp: ```[{"id":10,"title":"Albert Gleizes"}]```
-* Example 2:
-  * curl: ```ip:port/data/search/rand -d "{\"amount\":3}```
-  * resp: ```[{"id":7,"title":"Abstraction"},{...},{...}]```
-
+curl(v7.68.0) example:
+```
+curl http://ip:port/data/search/articles/bycontent -d "{\"str\":\"the\", \"limit\":1}"
+# Return might be [{"id":8,"title":"Last Thursdayism"}] if the search is ok.
+```
+----
+#### ip:port/data/search/articles/byneigh
+This endpoint searches the data layer for Wikipedia content (article(s)) for neighbours of a given article id (i.e
+articles hyperlinked from the article with the provided ID), using a JSON of form `{id:int, limit:int}`. **Note**,
+this endpoint isn't deterministic, it uses a markov-chain-like recommendation (relying on Redis).
 <br>
-
-(**4**) This endpoint expects a json with format ```{"pairs":list}```, where "pairs" specifies a list of ordered pairs (two-element lists of strings). These ordered pairs are mean for checking if the first element is related to the second in the db (both strings should be titles of wiki articles). Response is expected to be a list of booleans (one bool for each ordered pair).
-* Example 1:
-  * curl: ```ip:port/data/check/rels"{\"pairs\":[[\"Abstract animation\",\"Art\"]]}"```
-  * resp: ```{"resp":[true]}``` or ```{"resp":[false]}```
-* Example 2:
-  * json: ```{"pairs":[["a","b"], ["c", "d"]]}"```
-  * resp: ```{"resp":[true, false]}```
-
+curl(v7.68.0) example:
+```
+curl http://ip:port/data/search/articles/byneigh -d "{\"id\":4394, \"limit\":1}"
+# Return might be [{"id":8,"title":"Last Thursdayism"}] if the relationship is true.
+```
+----
+#### ip:port/data/html/byid
+This endpoint searches the data layer for the *HTML* of a Wikipedia content with a article given ID, using a
+JSON of form `{id:int}`
 <br>
+curl(v7.68.0) example:
+```
+curl http://ip:port/data/search/html/byid -d "{\"id\":8}"
+# Might return a HTML string if that article exists.
+```
+----
+#### ip:port/data/check/relsexist
+This endpoint checks the data layer for whether or not relationships exist between articles, using a JSON
+where the key is 'rels' and value is expected to be a nested list, where the inner ones are of length 2, like
+`{rels:[[4394, 4395]]}`. This checks if there is an article with ID 4395 in the database that connects to another
+article with ID 4395 (order matters).
+<br>
+curl(v7.68.0) example:
+```
+curl http://ip:port/data/check/relsexist -d "{\"rels\":[[4394, 4395]]}"
+# Returns [true] if that relationship exists.
+```
+----
+#### ip:port/data/random/articles
+This endpoint searches the data layer for a specified amount of random articles, accepting a JOSN of form `{limit:int}`.
+<br>
+curl(v7.68.0) example:
+```
+curl http://ip:port/data/random/articles -d "{\"limit\":1}"
+# Might return [{"id":9,"title":"2010"}]
+```
+
