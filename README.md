@@ -31,12 +31,12 @@ The API has 7 endpoints, all of which are JSON over POST. They're all read-only 
 but the 4th one below (../byneigh) is used with Redis to cache searches and use that data to update a relationship weight between
 linked articles in Neo4j for the purpose of article recommendation.
 
-- [```ip:port/data/search/articles/byid```]()
-- [```ip:port/data/search/articles/bytitle```]()
-- [```ip:port/data/search/articles/bycontent```]()
-- [```ip:port/data/search/articles/byneigh```]()
-- [```ip:port/data/html/byid```]()
-- [```ip:port/data/check/relsexist```](#ip:port/data/check/relsexist)
+- [```ip:port/data/search/articles/byid```](#ipportdatasearcharticlesbyid)
+- [```ip:port/data/search/articles/bytitle```](#ipportdatasearcharticlesbytitle)
+- [```ip:port/data/search/articles/bycontent```](#ipportdatasearcharticlesbycontent)
+- [```ip:port/data/search/articles/byneigh```](#ipportdatasearcharticlesbyneigh)
+- [```ip:port/data/html/byid```](#ipportdatahtmlbyid)
+- [```ip:port/data/check/relsexist```](#ipportdatacheckrelsexist)
 - [```ip:port/data/random/articles```](#ipportdatarandomarticles)
 
 ----
