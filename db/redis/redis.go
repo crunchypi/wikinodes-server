@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/go-redis/redis/v8"
 	"strconv"
-	"time"
+	"wikinodes-server/config"
 )
 
 var (
@@ -13,7 +13,7 @@ var (
 	// This is used to keep track of which Wikipedia
 	// article (neo4j db) IDs are used by IPs for
 	// the purpose of recommendations.
-	queryIDExpiration = time.Second * 20
+	queryIDExpiration = config.QueryTrackExpiration
 	// Namespace or ip:queryid(wiki) keys.
 	namespaceWikiID = "wikiID"
 	// These two are used to prevent service
@@ -21,8 +21,8 @@ var (
 	// of requests per t amount of time, where
 	// x = dosguardAllowance and
 	// t = dosguardExpiration
-	dosguardExpiration = time.Second * 10
-	dosguardAllowance  = 100
+	dosguardExpiration = config.DOSGuardRefreshDelta
+	dosguardAllowance  = config.DOSGuardAllowancePerRefresh
 	namespaceDosguard  = "dg"
 )
 

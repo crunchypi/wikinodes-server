@@ -10,7 +10,7 @@ import (
 // setRoutes sets up routes for this API.
 func (h *handler) setRoutes() {
 	// # Serve static
-	http.Handle("/", http.FileServer(http.Dir("./www/build/")))
+	http.Handle("/", http.FileServer(http.Dir(pathToReactApp)))
 
 	routes := map[string]func(w http.ResponseWriter, r *http.Request){
 		"/data/search/articles/byid":      h.searchArticlesByID,

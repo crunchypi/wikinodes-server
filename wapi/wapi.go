@@ -3,16 +3,18 @@ package wapi
 import (
 	"net/http"
 	"strings"
-	"time"
+	"wikinodes-server/config"
 	"wikinodes-server/db"
 )
 
 var (
-	ip   = "localhost"
-	port = "1234"
+	ip   = config.WAPIIP
+	port = config.WAPIPort
 	// # Server IO time limitation.
-	readTimeout  = time.Duration(time.Second * 5)
-	writeTimeout = time.Duration(time.Second * 5)
+	readTimeout  = config.ReadTimeout
+	writeTimeout = config.WriteTimeout
+
+	pathToReactApp = config.PathToReactApp
 )
 
 // handler serves as a bridge between the app and
