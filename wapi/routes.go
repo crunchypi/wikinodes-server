@@ -9,6 +9,9 @@ import (
 
 // setRoutes sets up routes for this API.
 func (h *handler) setRoutes() {
+	// # Serve static
+	http.Handle("/", http.FileServer(http.Dir("./www/build/")))
+
 	routes := map[string]func(w http.ResponseWriter, r *http.Request){
 		"/data/search/articles/byid":      h.searchArticlesByID,
 		"/data/search/articles/bytitle":   h.searchArticlesByTitle,
