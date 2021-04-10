@@ -23,8 +23,8 @@ func (h *handler) setRoutes() {
 		"/data/random/articles": h.randomArticles,
 	}
 	for k, v := range routes {
-		fmt.Sprintln("Setting route: " + k)
 		http.Handle(k, h.midDOS(http.HandlerFunc(v)))
+		fmt.Printf("route: '%s' is up. \n", k)
 	}
 }
 
